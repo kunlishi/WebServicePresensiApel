@@ -145,9 +145,3 @@ Backend REST API untuk presensi apel dan perizinan mahasiswa. Proyek ini telah d
   - Telah diperbaiki dengan DTO. Gunakan endpoint list izin admin yang mengembalikan ringkasan (bukan entity secara langsung).
 - Port 8080 in use: ubah `server.port` atau hentikan proses yang memakai port tersebut.
 
-## Dokumentasi Tambahan
-- Latar Belakang & Proses Bisnis: `docs/Sistem Presensi Apel dan Perizinan.txt`
-- Arsitektur, Token-Based Auth, Swagger: `docs/Arsitektur-Token-Swagger.md`
-- Struktur Proyek & Kode Utama: `docs/Struktur-Proyek.md`
-- Flowchart (Draw.io XML): `docs/business-process.drawio`
-
