@@ -151,5 +151,3 @@ Backend REST API untuk presensi apel dan perizinan mahasiswa. Proyek ini telah d
 - Struktur Proyek & Kode Utama: `docs/Struktur-Proyek.md`
 - Flowchart (Draw.io XML): `docs/business-process.drawio`
 
-## Lisensi
-Internal/Private (sesuaikan dengan kebutuhan organisasi).
