@@ -2,6 +2,7 @@ package com.polstat.WebServiceApel.controller;
 
 import com.polstat.WebServiceApel.dto.PresensiBatchRequest;
 import com.polstat.WebServiceApel.dto.PresensiBatchResponse;
+import com.polstat.WebServiceApel.dto.PresensiRequest;
 import com.polstat.WebServiceApel.dto.PresensiRecordResponse;
 import com.polstat.WebServiceApel.dto.TerlambatRequest;
 import com.polstat.WebServiceApel.service.PresensiService;
@@ -27,11 +28,11 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 public class SPDController {
     private final PresensiService presensiService;
 
-    @Operation(summary = "Upload presensi batch", description = "Role: SPD. Mengunggah daftar NIM hadir untuk suatu jadwal")
+    @Operation(summary = "Upload presensi", description = "Role: SPD. Mengunggah NIM hadir untuk suatu jadwal")
     @PostMapping("/presensi")
     @PreAuthorize("hasAuthority('SPD')")
-    public ResponseEntity<PresensiBatchResponse> uploadPresensi(@RequestBody PresensiBatchRequest request) {
-        return ResponseEntity.ok(presensiService.saveBatch(request));
+    public ResponseEntity<PresensiRecordResponse> uploadPresensi(@RequestBody PresensiRequest request) {
+        return ResponseEntity.ok(presensiService.savePresensiSingle(request));
     }
 
     @Operation(summary = "Rekap presensi", description = "Role: SPD. Melihat data presensi, filter opsional tanggal/tingkat")
@@ -63,9 +64,8 @@ public class SPDController {
     @Operation(summary = "Tandai terlambat batch", description = "Role: SPD. Menandai mahasiswa terlambat untuk jadwal tertentu")
     @PostMapping("/terlambat")
     @PreAuthorize("hasAuthority('SPD')")
-    public ResponseEntity<Long> markTerlambat(@RequestBody TerlambatRequest request) {
-        long updated = presensiService.markTerlambat(request.getTanggal(), request.getTingkat(), request.getMahasiswa());
-        return ResponseEntity.ok(updated);
+    public ResponseEntity<PresensiRecordResponse> markTerlambat(@RequestBody PresensiRequest request) {
+        return ResponseEntity.ok(presensiService.markTerlambatSingle(request));
     }
 
     @Operation(summary = "Rekap terlambat", description = "Role: SPD. Melihat ringkasan keterlambatan, filter opsional tanggal/tingkat")

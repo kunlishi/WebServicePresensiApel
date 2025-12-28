@@ -2,6 +2,8 @@ package com.polstat.WebServiceApel.service;
 
 import com.polstat.WebServiceApel.dto.PresensiBatchRequest;
 import com.polstat.WebServiceApel.dto.PresensiBatchResponse;
+import com.polstat.WebServiceApel.dto.PresensiRecordResponse;
+import com.polstat.WebServiceApel.dto.PresensiRequest;
 import com.polstat.WebServiceApel.entity.ApelSchedule;
 import com.polstat.WebServiceApel.entity.Mahasiswa;
 import com.polstat.WebServiceApel.entity.Presensi;
@@ -11,6 +13,7 @@ import com.polstat.WebServiceApel.repository.PresensiRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -126,5 +129,97 @@ public class PresensiService {
             }
         }
         return updated;
+    }
+    public PresensiRecordResponse savePresensiSingle(com.polstat.WebServiceApel.dto.PresensiRequest request) {
+        // 1. Cari Jadwal (Menggunakan query yang sama dengan saveBatch)
+        ApelSchedule schedule = apelScheduleRepository
+                .findByTanggalApelAndTingkat(java.time.LocalDate.parse(request.getTanggal()), request.getTingkat())
+                .orElseThrow(() -> new IllegalArgumentException("Jadwal apel tidak ditemukan"));
+
+        // 2. Cari Mahasiswa
+        Mahasiswa mhs = mahasiswaRepository.findByNim(request.getNim())
+                .orElseThrow(() -> new IllegalArgumentException("Mahasiswa dengan NIM " + request.getNim() + " tidak ditemukan"));
+
+        // 3. Cek Duplikasi (Sesuai logika saveBatch)
+        if (!presensiRepository.findByMahasiswaAndApelSchedule(mhs, schedule).isEmpty()) {
+            throw new IllegalArgumentException("Mahasiswa sudah melakukan presensi pada jadwal ini");
+        }
+
+        // 4. Simpan Data
+        Presensi presensi = Presensi.builder()
+                .mahasiswa(mhs)
+                .apelSchedule(schedule)
+                .waktuPresensi(LocalDateTime.now())
+                .status(Presensi.Status.HADIR)
+                .createdBySpd(org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName())
+                .build();
+
+        Presensi saved = presensiRepository.save(presensi);
+
+        // 5. Kembalikan Response (Seragam dengan listPresensi)
+        return mapToRecordResponse(saved, schedule);
+    }
+
+    public PresensiRecordResponse markTerlambatSingle(com.polstat.WebServiceApel.dto.PresensiRequest request) {
+        ApelSchedule schedule = apelScheduleRepository
+                .findByTanggalApelAndTingkat(java.time.LocalDate.parse(request.getTanggal()), request.getTingkat())
+                .orElseThrow(() -> new IllegalArgumentException("Jadwal apel tidak ditemukan"));
+
+        Mahasiswa mhs = mahasiswaRepository.findByNim(request.getNim())
+                .orElseThrow(() -> new IllegalArgumentException("Mahasiswa tidak ditemukan"));
+
+        List<Presensi> existing = presensiRepository.findByMahasiswaAndApelSchedule(mhs, schedule);
+        Presensi p;
+
+        if (existing.isEmpty()) {
+            p = Presensi.builder()
+                    .mahasiswa(mhs)
+                    .apelSchedule(schedule)
+                    .waktuPresensi(LocalDateTime.now())
+                    .status(Presensi.Status.TERLAMBAT)
+                    .createdBySpd(org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName())
+                    .build();
+        } else {
+            p = existing.get(0);
+            p.setStatus(Presensi.Status.TERLAMBAT);
+            p.setCreatedBySpd(org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName());
+        }
+
+        Presensi saved = presensiRepository.save(p);
+        return mapToRecordResponse(saved, schedule);
+    }
+
+    // Helper method agar kode bersih dan seragam
+    private PresensiRecordResponse mapToRecordResponse(Presensi p, ApelSchedule s) {
+        return PresensiRecordResponse.builder()
+                .scheduleId(s.getId())
+                .tanggal(s.getTanggalApel())
+                .tingkat(s.getTingkat())
+                .nim(p.getMahasiswa().getNim())
+                .nama(p.getMahasiswa().getNama())
+                .waktuPresensi(p.getWaktuPresensi())
+                .status(p.getStatus())
+                .createdBySpd(p.getCreatedBySpd())
+                .build();
+    }
+
+    public List<PresensiRecordResponse> getRiwayatByNim(String nim) {
+        Mahasiswa mhs = mahasiswaRepository.findByNim(nim)
+                .orElseThrow(() -> new IllegalArgumentException("Mahasiswa tidak ditemukan"));
+
+        List<Presensi> riwayat = presensiRepository.findByMahasiswaOrderByWaktuPresensiDesc(mhs);
+
+        return riwayat.stream()
+                .map(p -> PresensiRecordResponse.builder()
+                        .scheduleId(p.getApelSchedule().getId())
+                        .tanggal(p.getApelSchedule().getTanggalApel())
+                        .tingkat(p.getApelSchedule().getTingkat())
+                        .nim(p.getMahasiswa().getNim())
+                        .nama(p.getMahasiswa().getNama())
+                        .waktuPresensi(p.getWaktuPresensi())
+                        .status(p.getStatus())
+                        .createdBySpd(p.getCreatedBySpd())
+                        .build())
+                .collect(Collectors.toList());
     }
 }

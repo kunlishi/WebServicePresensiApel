@@ -16,5 +16,7 @@ public interface PresensiRepository extends JpaRepository<Presensi,Long> {
 
     List<Presensi> findByApelSchedule(ApelSchedule apelSchedule);
 
+    List<Presensi> findByMahasiswaOrderByWaktuPresensiDesc(Mahasiswa mahasiswa);
+
     void deleteByMahasiswa(Mahasiswa mahasiswa);
 }

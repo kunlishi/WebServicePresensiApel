@@ -51,7 +51,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/admin/**").hasAuthority("ADMIN")
                         .requestMatchers("/api/spd/**").hasAuthority("SPD")
                         // Mahasiswa izin: semua metode di bawah path ini memerlukan autentikasi
-                        .requestMatchers("/api/mahasiswa/izin/**").authenticated()
+                        .requestMatchers("/api/mahasiswa/**").authenticated()
                         // Pastikan base path tanpa trailing slash juga tercakup
                         .requestMatchers(HttpMethod.GET, "/api/mahasiswa/izin", "/api/mahasiswa/izin/", "/api/mahasiswa/izin/me").authenticated()
                         .anyRequest().authenticated()

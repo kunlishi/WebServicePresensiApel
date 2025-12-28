@@ -4,11 +4,11 @@ import com.polstat.WebServiceApel.dto.JadwalApelRequest;
 import com.polstat.WebServiceApel.entity.ApelSchedule;
 import com.polstat.WebServiceApel.entity.IzinSakit;
 import com.polstat.WebServiceApel.service.AdminService;
+import org.springframework.web.bind.annotation.RequestBody;
 import lombok.RequiredArgsConstructor;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
-import io.swagger.v3.oas.annotations.parameters.RequestBody;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
@@ -28,7 +28,7 @@ public class AdminController {
     private final AdminService adminService;
 
     @Operation(summary = "Buat jadwal apel", description = "Role: ADMIN. Admin membuat jadwal apel baru")
-    @RequestBody(
+    @io.swagger.v3.oas.annotations.parameters.RequestBody(
             required = true,
             content = @Content(
                     mediaType = "application/json",

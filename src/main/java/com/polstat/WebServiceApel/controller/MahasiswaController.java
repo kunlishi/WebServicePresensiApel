@@ -1,7 +1,9 @@
 package com.polstat.WebServiceApel.controller;
 
 import com.polstat.WebServiceApel.dto.MahasiswaResponse;
+import com.polstat.WebServiceApel.dto.PresensiRecordResponse;
 import com.polstat.WebServiceApel.service.MahasiswaService;
+import com.polstat.WebServiceApel.service.PresensiService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -15,6 +17,8 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/mahasiswa")
 @Tag(name = "Mahasiswa", description = "Profil dan pencarian data mahasiswa")
@@ -22,6 +26,7 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 @RequiredArgsConstructor
 public class MahasiswaController {
     private final MahasiswaService mahasiswaService;
+    private final PresensiService presensiService;
 
     @Operation(summary = "Profil mahasiswa saya", description = "Role: MAHASISWA. Profil mahasiswa berdasarkan user login")
     @GetMapping("/me")
@@ -51,5 +56,14 @@ public class MahasiswaController {
     @PreAuthorize("hasAnyAuthority('ADMIN','SPD')")
     public ResponseEntity<java.util.List<MahasiswaResponse>> listByTingkat(@PathVariable String tingkat) {
         return ResponseEntity.ok(mahasiswaService.findByTingkat(tingkat));
+    }
+
+    @Operation(summary = "Riwayat presensi saya", description = "Role: MAHASISWA. Melihat daftar kehadiran diri sendiri")
+    @GetMapping("/riwayat")
+    @PreAuthorize("hasAuthority('MAHASISWA')")
+    public ResponseEntity<List<PresensiRecordResponse>> getRiwayat() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String username = auth.getName(); // Mengambil NIM dari token JWT
+        return ResponseEntity.ok(presensiService.getRiwayatByNim(username));
     }
 }
