@@ -19,6 +19,7 @@ public class PresensiRecordResponse {
     private String tingkat;
     private String nim;
     private String nama;
+    private String kelas;
     private LocalDateTime waktuPresensi;
     private Presensi.Status status;
     private String createdBySpd;

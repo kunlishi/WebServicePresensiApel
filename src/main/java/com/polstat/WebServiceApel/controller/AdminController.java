@@ -1,6 +1,7 @@
 package com.polstat.WebServiceApel.controller;
 
 import com.polstat.WebServiceApel.dto.JadwalApelRequest;
+import com.polstat.WebServiceApel.dto.PresensiRecordResponse;
 import com.polstat.WebServiceApel.entity.ApelSchedule;
 import com.polstat.WebServiceApel.entity.IzinSakit;
 import com.polstat.WebServiceApel.service.AdminService;
@@ -95,6 +96,13 @@ public class AdminController {
     @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<List<com.polstat.WebServiceApel.dto.PresensiRecordResponse>> listPresensiAll() {
         return ResponseEntity.ok(adminService.listPresensiAll());
+    }
+
+    @Operation(summary = "Rekap presensi per jadwal", description = "Role: ADMIN. Melihat daftar mahasiswa yang hadir/tidak pada jadwal tertentu")
+    @GetMapping("/presensi/rekap/{scheduleId}")
+    @PreAuthorize("hasAuthority('ADMIN')")
+    public ResponseEntity<List<PresensiRecordResponse>> getRekapByJadwal(@PathVariable Long scheduleId) {
+        return ResponseEntity.ok(adminService.getFullRekapByJadwal(scheduleId));
     }
 
     // Endpoint unduh bukti dihapus karena list sudah menyertakan buktiBase64

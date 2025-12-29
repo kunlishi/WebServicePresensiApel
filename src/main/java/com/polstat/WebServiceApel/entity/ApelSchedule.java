@@ -1,9 +1,11 @@
 package com.polstat.WebServiceApel.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.List;
 
 @Entity
 @Data
@@ -27,4 +29,8 @@ public class ApelSchedule {
 
     @Column
     private String keterangan; //opsional
+
+    @OneToMany(mappedBy = "apelSchedule", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnore
+    private List<Presensi> presensiList;
 }

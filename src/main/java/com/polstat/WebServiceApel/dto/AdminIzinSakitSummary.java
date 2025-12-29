@@ -21,7 +21,7 @@ public class AdminIzinSakitSummary {
     private String mahasiswaNama;
     private IzinSakit.Jenis jenis;
     private IzinSakit.Status statusBukti;
-    private String alasan;
+    private String keterangan;
     private String catatanAdmin;
     private boolean hasBukti;
     private String buktiUrl;     // link untuk unduh bukti

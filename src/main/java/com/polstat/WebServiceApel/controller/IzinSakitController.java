@@ -33,13 +33,16 @@ public class IzinSakitController {
     @PostMapping(consumes = { org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE })
     public ResponseEntity<Long> ajukanMultipart(
             @RequestParam("tanggal") java.time.LocalDate tanggal,
-            @RequestParam(value = "tingkat", required = false) String tingkat,
-            @RequestParam("alasan") String alasan,
-            @RequestParam(value = "bukti", required = false) MultipartFile bukti
+            @RequestParam(value = "tingkat", required = true) String tingkat,
+            @RequestParam("jenis") String jenis,
+            @RequestParam("keterangan") String keterangan,
+            @RequestParam(value = "bukti", required = true) MultipartFile bukti
     ) throws java.io.IOException {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
         byte[] buktiBytes = (bukti != null && !bukti.isEmpty()) ? bukti.getBytes() : null;
-        Long id = izinSakitService.ajukanIzinSakit(username, tanggal, tingkat, alasan, buktiBytes);
+
+        // Kirim jenis dan keterangan ke service
+        Long id = izinSakitService.ajukanIzinSakit(username, tanggal, tingkat, jenis, keterangan, buktiBytes);
         return ResponseEntity.ok(id);
     }
 
@@ -56,7 +59,7 @@ public class IzinSakitController {
                         .tingkat(izin.getApelSchedule().getTingkat())
                         .jenis(izin.getJenis())
                         .statusBukti(izin.getStatusBukti())
-                        .alasan(izin.getAlasan())
+                        .keterangan(izin.getKeterangan())
                         .catatanAdmin(izin.getCatatanAdmin())
                         .buktiBase64(izin.getBukti() != null ? java.util.Base64.getEncoder().encodeToString(izin.getBukti()) : null)
                         .build())
@@ -77,7 +80,7 @@ public class IzinSakitController {
                         .tingkat(izin.getApelSchedule().getTingkat())
                         .jenis(izin.getJenis())
                         .statusBukti(izin.getStatusBukti())
-                        .alasan(izin.getAlasan())
+                        .keterangan(izin.getKeterangan())
                         .catatanAdmin(izin.getCatatanAdmin())
                         .buktiBase64(izin.getBukti() != null ? java.util.Base64.getEncoder().encodeToString(izin.getBukti()) : null)
                         .build())
@@ -98,7 +101,7 @@ public class IzinSakitController {
                 .tingkat(izin.getApelSchedule().getTingkat())
                 .jenis(izin.getJenis())
                 .statusBukti(izin.getStatusBukti())
-                .alasan(izin.getAlasan())
+                .keterangan(izin.getKeterangan())
                 .catatanAdmin(izin.getCatatanAdmin())
                 .buktiBase64(b64)
                 .build());

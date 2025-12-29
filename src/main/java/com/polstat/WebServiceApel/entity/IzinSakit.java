@@ -28,10 +28,11 @@ public class IzinSakit {
     private Jenis jenis; //IZIN atau SAKIT
 
     @Lob
+    @Column(columnDefinition = "LONGBLOB")
     private byte[] bukti; //file dikirim langsung
 
     @Column
-    private String alasan;
+    private String keterangan;
 
     @Column
     private String catatanAdmin;

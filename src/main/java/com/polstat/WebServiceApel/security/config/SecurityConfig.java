@@ -44,16 +44,11 @@ public class SecurityConfig {
                                 "/api/auth/**",
                                 "/v3/api-docs/**",
                                 "/swagger-ui.html",
-                                "/swagger-ui/**"
+                                "/swagger-ui/**",
+                                "/error"
                         ).permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        // Batasi akses berbasis path untuk konsistensi dengan anotasi method
-                        .requestMatchers("/api/admin/**").hasAuthority("ADMIN")
-                        .requestMatchers("/api/spd/**").hasAuthority("SPD")
-                        // Mahasiswa izin: semua metode di bawah path ini memerlukan autentikasi
-                        .requestMatchers("/api/mahasiswa/**").authenticated()
-                        // Pastikan base path tanpa trailing slash juga tercakup
-                        .requestMatchers(HttpMethod.GET, "/api/mahasiswa/izin", "/api/mahasiswa/izin/", "/api/mahasiswa/izin/me").authenticated()
+                        .requestMatchers("/api/admin/**", "/api/spd/**", "/api/mahasiswa/**").authenticated()
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))

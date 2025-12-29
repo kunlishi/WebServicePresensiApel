@@ -24,18 +24,11 @@ public class IzinSakitService {
     private final ApelScheduleRepository apelScheduleRepository;
     private final UserRepository userRepository;
 
-    public Long ajukanIzinSakit(String username, IzinSakitRequest request) {
-        byte[] bukti = null;
-        if (request.getBukti() != null && !request.getBukti().isEmpty()) {
-            bukti = Base64.getDecoder().decode(request.getBukti());
-        }
-        return ajukanIzinSakit(username, request.getTanggal(), request.getTingkat(), request.getAlasan(), bukti);
-    }
-
     public Long ajukanIzinSakit(String username,
                                  java.time.LocalDate tanggal,
                                  String tingkat,
-                                 String alasan,
+                                 String jenis,
+                                 String keterangan,
                                  byte[] buktiBytes) {
         // Pastikan entity Mahasiswa terhubung dengan user ini (link berdasarkan user.username)
         Mahasiswa mahasiswa = mahasiswaRepository.findByUser_Username(username)
@@ -74,7 +67,7 @@ public class IzinSakitService {
                 .jenis(IzinSakit.Jenis.SAKIT)
                 .bukti(buktiBytes)
                 .catatanAdmin(null)
-                .alasan(alasan)
+                .keterangan(keterangan)
                 .statusBukti(IzinSakit.Status.MENUNGGU)
                 .build();
 

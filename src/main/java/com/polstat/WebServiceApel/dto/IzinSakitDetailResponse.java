@@ -19,7 +19,7 @@ public class IzinSakitDetailResponse {
     private String tingkat;
     private IzinSakit.Jenis jenis;
     private IzinSakit.Status statusBukti;
-    private String alasan;
+    private String keterangan;
     private String catatanAdmin;
     private String buktiBase64;
 }
