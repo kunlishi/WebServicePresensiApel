@@ -1,9 +1,6 @@
 package com.polstat.WebServiceApel.service;
 
-import com.polstat.WebServiceApel.dto.PresensiBatchRequest;
-import com.polstat.WebServiceApel.dto.PresensiBatchResponse;
-import com.polstat.WebServiceApel.dto.PresensiRecordResponse;
-import com.polstat.WebServiceApel.dto.PresensiRequest;
+import com.polstat.WebServiceApel.dto.*;
 import com.polstat.WebServiceApel.entity.ApelSchedule;
 import com.polstat.WebServiceApel.entity.Mahasiswa;
 import com.polstat.WebServiceApel.entity.Presensi;
@@ -12,9 +9,11 @@ import com.polstat.WebServiceApel.repository.MahasiswaRepository;
 import com.polstat.WebServiceApel.repository.PresensiRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -25,41 +24,64 @@ public class PresensiService {
     private final MahasiswaRepository mahasiswaRepository;
     private final ApelScheduleRepository apelScheduleRepository;
 
-    public PresensiBatchResponse saveBatch(PresensiBatchRequest request) {
-        ApelSchedule schedule = apelScheduleRepository
-                .findByTanggalApelAndTingkat(request.getTanggal(), request.getTingkat())
-                .orElseThrow(() -> new IllegalArgumentException("Jadwal apel tidak ditemukan untuk tanggal/tingkat tersebut"));
-
-        long saved = 0;
-        long ignored = 0;
-
-        for (String nim : request.getMahasiswa()) {
-            Mahasiswa mhs = mahasiswaRepository.findByNim(nim).orElse(null);
-            if (mhs == null) {
-                ignored++;
-                continue;
-            }
-            List<Presensi> existing = presensiRepository.findByMahasiswaAndApelSchedule(mhs, schedule);
-            if (!existing.isEmpty()) {
-                ignored++;
-                continue;
-            }
-            Presensi presensi = Presensi.builder()
-                    .mahasiswa(mhs)
-                    .apelSchedule(schedule)
-                    .waktuPresensi(LocalDateTime.now())
-                    .status(Presensi.Status.HADIR)
-                    .createdBySpd(org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName())
-                    .build();
-            presensiRepository.save(presensi);
-            saved++;
+    @Transactional
+    public ScanResponse processScan(String nim, Long scheduleId) {
+        Mahasiswa mahasiswa = mahasiswaRepository.findByNim(nim);
+        if (mahasiswa == null) {
+            return new ScanResponse("ERROR", "Mahasiswa tidak ditemukan", null, null);
         }
 
-        return PresensiBatchResponse.builder()
-                .savedCount(saved)
-                .ignoredCount(ignored)
-                .scheduleId(schedule.getId())
+        ApelSchedule schedule = apelScheduleRepository.findById(scheduleId)
+                .orElseThrow(() -> new RuntimeException("Jadwal tidak ditemukan"));
+
+        // 1. Cek apakah sudah absen
+        if (presensiRepository.existsByMahasiswaAndApelSchedule(mahasiswa, schedule)) {
+            return new ScanResponse("ALREADY_PRESENT", "Mahasiswa sudah absen", nim, mahasiswa.getNama());
+        }
+
+        LocalTime now = LocalTime.now();
+        LocalTime startTime = schedule.getJamMulai();
+
+        // Batas Toleransi: Jadwal - 5 menit s/d Jadwal + 5 menit
+        LocalTime lowerBound = startTime.minusMinutes(5);
+        LocalTime upperBound = startTime.plusMinutes(5);
+
+        // 2. Logika Penentuan Status
+        if (now.isAfter(lowerBound) && now.isBefore(upperBound)) {
+            // RENTANG KRITIS: Jangan simpan ke DB dulu, minta konfirmasi petugas
+            return ScanResponse.builder()
+                    .status("NEED_CONFIRMATION")
+                    .message("Waktu transisi (±5 mnt). Pilih status manual:")
+                    .nim(nim)
+                    .nama(mahasiswa.getNama())
+                    .build();
+        } else if (now.isBefore(lowerBound)) {
+            // Masih pagi (lebih dari 5 menit sebelum mulai) -> HADIR
+            saveToDb(mahasiswa, schedule, now, Presensi.Status.HADIR);
+            return new ScanResponse("HADIR", "Presensi Berhasil (Tepat Waktu)", nim, mahasiswa.getNama());
+        } else {
+            // Sudah lewat (lebih dari 5 menit setelah mulai) -> TERLAMBAT
+            saveToDb(mahasiswa, schedule, now, Presensi.Status.TERLAMBAT);
+            return new ScanResponse("TERLAMBAT", "Presensi Berhasil (Terlambat)", nim, mahasiswa.getNama());
+        }
+    }
+
+    @Transactional
+    public void confirmManual(String nim, Long scheduleId, String status) {
+        Mahasiswa mahasiswa = mahasiswaRepository.findByNim(nim);
+        ApelSchedule schedule = apelScheduleRepository.findById(scheduleId).get();
+
+        saveToDb(mahasiswa, schedule, LocalTime.now(), Presensi.Status.valueOf(status.toUpperCase()));
+    }
+
+    private void saveToDb(Mahasiswa m, ApelSchedule s, LocalTime t, Presensi.Status st) {
+        Presensi presensi = Presensi.builder()
+                .mahasiswa(m)
+                .apelSchedule(s)
+                .waktuScan(t)
+                .status(st)
                 .build();
+        presensiRepository.save(presensi);
     }
 
     public List<com.polstat.WebServiceApel.dto.PresensiRecordResponse> listPresensi(java.time.LocalDate tanggal, String tingkat) {

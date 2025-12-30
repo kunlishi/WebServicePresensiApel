@@ -1,6 +1,7 @@
 package com.polstat.WebServiceApel.service;
 
 import com.polstat.WebServiceApel.dto.JadwalApelRequest;
+import com.polstat.WebServiceApel.dto.PresensiDetailResponse;
 import com.polstat.WebServiceApel.dto.PresensiRecordResponse;
 import com.polstat.WebServiceApel.entity.ApelSchedule;
 import com.polstat.WebServiceApel.entity.IzinSakit;
@@ -13,10 +14,12 @@ import com.polstat.WebServiceApel.repository.MahasiswaRepository;
 import com.polstat.WebServiceApel.repository.PresensiRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Base64;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -101,10 +104,56 @@ public class AdminService {
         }).collect(Collectors.toList());
     }
 
-    public void validateIzin(Long id, IzinSakit.Status status) {
+    @Transactional(readOnly = true)
+    public List<PresensiDetailResponse> getRekapPresensi(Long scheduleId) {
+        // 1. Ambil info jadwal
+        ApelSchedule schedule = apelScheduleRepository.findById(scheduleId)
+                .orElseThrow(() -> new RuntimeException("Jadwal tidak ditemukan"));
+
+        // 2. Ambil semua mahasiswa di tingkat yang sama
+        List<Mahasiswa> daftarMahasiswa = mahasiswaRepository.findByTingkat(schedule.getTingkat());
+
+        // 3. Ambil semua data presensi & izin yang sudah masuk untuk jadwal ini
+        List<Presensi> listPresensi = presensiRepository.findByApelSchedule(schedule);
+        List<IzinSakit> listIzin = izinSakitRepository.findByApelScheduleAndStatusBukti(schedule, IzinSakit.Status.DITERIMA);
+
+        // 4. Gabungkan datanya
+        return daftarMahasiswa.stream().map(mhs -> {
+            // Cek apakah ada di tabel presensi
+            Optional<Presensi> p = listPresensi.stream()
+                    .filter(pres -> pres.getMahasiswa().getNim().equals(mhs.getNim()))
+                    .findFirst();
+
+            // Cek apakah ada di tabel izin (yang sudah disetujui)
+            Optional<IzinSakit> iz = listIzin.stream()
+                    .filter(i -> i.getMahasiswa().getNim().equals(mhs.getNim()))
+                    .findFirst();
+
+            String finalStatus = "TIDAK_HADIR"; // Default jika tidak ada data sama sekali
+            String catatan = "";
+
+            if (p.isPresent()) {
+                finalStatus = p.get().getStatus().toString(); // HADIR atau TERLAMBAT
+            } else if (iz.isPresent()) {
+                finalStatus = iz.get().getJenis().toString(); // IZIN atau SAKIT
+                catatan = iz.get().getCatatanAdmin();
+            }
+
+            return PresensiDetailResponse.builder()
+                    .nim(mhs.getNim())
+                    .nama(mhs.getNama())
+                    .kelas(mhs.getKelas())
+                    .status(finalStatus)
+                    .catatan(catatan)
+                    .build();
+        }).collect(Collectors.toList());
+    }
+
+    public void validateIzin(Long id, IzinSakit.Status status, String catatan) {
         IzinSakit izin = izinSakitRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Izin/Sakit tidak ditemukan"));
+                .orElseThrow(() -> new RuntimeException("Izin tidak ditemukan"));
         izin.setStatusBukti(status);
+        izin.setCatatanAdmin(catatan); // Simpan catatan admin ke database
         izinSakitRepository.save(izin);
     }
 

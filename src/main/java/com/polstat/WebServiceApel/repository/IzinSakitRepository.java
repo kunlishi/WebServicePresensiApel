@@ -13,6 +13,7 @@ public interface IzinSakitRepository extends JpaRepository<IzinSakit,Long> {
 
     @Query("select i from IzinSakit i join fetch i.mahasiswa m join fetch i.apelSchedule s where s.id = :scheduleId")
     List<IzinSakit> findAllWithMahasiswaBySchedule(@Param("scheduleId") Long scheduleId);
+    List<IzinSakit> findByApelScheduleAndStatusBukti(ApelSchedule schedule, IzinSakit.Status status);
 
     void deleteByMahasiswa(Mahasiswa mahasiswa);
 }

@@ -2,6 +2,7 @@ package com.polstat.WebServiceApel.controller;
 
 import com.polstat.WebServiceApel.dto.JadwalApelRequest;
 import com.polstat.WebServiceApel.dto.PresensiRecordResponse;
+import com.polstat.WebServiceApel.dto.PresensiDetailResponse;
 import com.polstat.WebServiceApel.entity.ApelSchedule;
 import com.polstat.WebServiceApel.entity.IzinSakit;
 import com.polstat.WebServiceApel.service.AdminService;
@@ -18,7 +19,6 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/admin")
@@ -49,8 +49,8 @@ public class AdminController {
     @Operation(summary = "Validasi izin", description = "Role: ADMIN. Admin menyetujui/menolak izin mahasiswa")
     @PutMapping("/izin/{id}")
     @PreAuthorize("hasAuthority('ADMIN')")
-    public ResponseEntity<Void> validateIzin(@PathVariable Long id, @RequestParam("status") IzinSakit.Status status) {
-        adminService.validateIzin(id, status);
+    public ResponseEntity<Void> validateIzin(@PathVariable Long id, @RequestParam("status") IzinSakit.Status status, @RequestParam(value = "catatan", required = false) String catatan) {
+        adminService.validateIzin(id, status, catatan);
         return ResponseEntity.noContent().build();
     }
 
@@ -103,6 +103,13 @@ public class AdminController {
     @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<List<PresensiRecordResponse>> getRekapByJadwal(@PathVariable Long scheduleId) {
         return ResponseEntity.ok(adminService.getFullRekapByJadwal(scheduleId));
+    }
+
+    @Operation(summary = "Rekap kehadiran per jadwal berdasakan presensi dan izin/sakit", description = "Role: ADMIN. Melihat daftar mahasiswa yang hadir/tidak beserta alasan ketidakhadiran pada jadwal tertentu")
+    @GetMapping("/rekap/{scheduleId}")
+    @PreAuthorize("hasAuthority('ADMIN')")
+    public ResponseEntity<List<PresensiDetailResponse>> getRekap(@PathVariable Long scheduleId) {
+        return ResponseEntity.ok(adminService.getRekapPresensi(scheduleId));
     }
 
     // Endpoint unduh bukti dihapus karena list sudah menyertakan buktiBase64
