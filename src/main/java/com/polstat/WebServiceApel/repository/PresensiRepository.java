@@ -9,6 +9,7 @@ import org.springframework.data.repository.query.Param;
 import java.util.List;
 
 public interface PresensiRepository extends JpaRepository<Presensi,Long> {
+    boolean existsByMahasiswaAndApelSchedule(Mahasiswa mahasiswa, ApelSchedule apelSchedule);
     List<Presensi> findByMahasiswaAndApelSchedule(Mahasiswa mahasiswa, ApelSchedule apelSchedule);
 
     @Query("select p from Presensi p join fetch p.mahasiswa m join fetch p.apelSchedule s where s.id = :scheduleId")

@@ -26,29 +26,25 @@ public class PresensiService {
 
     @Transactional
     public ScanResponse processScan(String nim, Long scheduleId) {
-        Mahasiswa mahasiswa = mahasiswaRepository.findByNim(nim);
-        if (mahasiswa == null) {
-            return new ScanResponse("ERROR", "Mahasiswa tidak ditemukan", null, null);
-        }
+        Mahasiswa mahasiswa = mahasiswaRepository.findByNim(nim)
+                .orElseThrow(() -> new RuntimeException("Mahasiswa dengan NIM " + nim + " tidak ditemukan"));
 
         ApelSchedule schedule = apelScheduleRepository.findById(scheduleId)
                 .orElseThrow(() -> new RuntimeException("Jadwal tidak ditemukan"));
 
-        // 1. Cek apakah sudah absen
         if (presensiRepository.existsByMahasiswaAndApelSchedule(mahasiswa, schedule)) {
             return new ScanResponse("ALREADY_PRESENT", "Mahasiswa sudah absen", nim, mahasiswa.getNama());
         }
 
         LocalTime now = LocalTime.now();
-        LocalTime startTime = schedule.getJamMulai();
+        LocalTime startTime = schedule.getWaktuApel();
 
-        // Batas Toleransi: Jadwal - 5 menit s/d Jadwal + 5 menit
+        // Tentukan Rentang Konfirmasi (Jadwal - 5 menit s/d Jadwal + 5 menit)
         LocalTime lowerBound = startTime.minusMinutes(5);
         LocalTime upperBound = startTime.plusMinutes(5);
 
-        // 2. Logika Penentuan Status
         if (now.isAfter(lowerBound) && now.isBefore(upperBound)) {
-            // RENTANG KRITIS: Jangan simpan ke DB dulu, minta konfirmasi petugas
+            // RENTANG FLEKSIBEL: Kirim instruksi konfirmasi
             return ScanResponse.builder()
                     .status("NEED_CONFIRMATION")
                     .message("Waktu transisi (±5 mnt). Pilih status manual:")
@@ -56,30 +52,33 @@ public class PresensiService {
                     .nama(mahasiswa.getNama())
                     .build();
         } else if (now.isBefore(lowerBound)) {
-            // Masih pagi (lebih dari 5 menit sebelum mulai) -> HADIR
-            saveToDb(mahasiswa, schedule, now, Presensi.Status.HADIR);
+            // Masih Pagi -> HADIR
+            saveToDb(mahasiswa, schedule, LocalDateTime.now(), Presensi.Status.HADIR);
             return new ScanResponse("HADIR", "Presensi Berhasil (Tepat Waktu)", nim, mahasiswa.getNama());
         } else {
-            // Sudah lewat (lebih dari 5 menit setelah mulai) -> TERLAMBAT
-            saveToDb(mahasiswa, schedule, now, Presensi.Status.TERLAMBAT);
+            // Sudah Lewat -> TERLAMBAT
+            saveToDb(mahasiswa, schedule, LocalDateTime.now(), Presensi.Status.TERLAMBAT);
             return new ScanResponse("TERLAMBAT", "Presensi Berhasil (Terlambat)", nim, mahasiswa.getNama());
         }
     }
 
     @Transactional
     public void confirmManual(String nim, Long scheduleId, String status) {
-        Mahasiswa mahasiswa = mahasiswaRepository.findByNim(nim);
-        ApelSchedule schedule = apelScheduleRepository.findById(scheduleId).get();
+        Mahasiswa mahasiswa = mahasiswaRepository.findByNim(nim)
+                .orElseThrow(() -> new RuntimeException("Mahasiswa tidak ditemukan"));
+        ApelSchedule schedule = apelScheduleRepository.findById(scheduleId)
+                .orElseThrow(() -> new RuntimeException("Jadwal tidak ditemukan"));
 
-        saveToDb(mahasiswa, schedule, LocalTime.now(), Presensi.Status.valueOf(status.toUpperCase()));
+        saveToDb(mahasiswa, schedule, LocalDateTime.now(), Presensi.Status.valueOf(status.toUpperCase()));
     }
 
-    private void saveToDb(Mahasiswa m, ApelSchedule s, LocalTime t, Presensi.Status st) {
+    private void saveToDb(Mahasiswa m, ApelSchedule s, LocalDateTime t, Presensi.Status st) {
         Presensi presensi = Presensi.builder()
                 .mahasiswa(m)
                 .apelSchedule(s)
-                .waktuScan(t)
+                .waktuPresensi(t)
                 .status(st)
+                .createdBySpd(org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName())
                 .build();
         presensiRepository.save(presensi);
     }

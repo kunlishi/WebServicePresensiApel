@@ -1,10 +1,6 @@
 package com.polstat.WebServiceApel.controller;
 
-import com.polstat.WebServiceApel.dto.PresensiBatchRequest;
-import com.polstat.WebServiceApel.dto.PresensiBatchResponse;
-import com.polstat.WebServiceApel.dto.PresensiRequest;
-import com.polstat.WebServiceApel.dto.PresensiRecordResponse;
-import com.polstat.WebServiceApel.dto.TerlambatRequest;
+import com.polstat.WebServiceApel.dto.*;
 import com.polstat.WebServiceApel.service.PresensiService;
 import lombok.RequiredArgsConstructor;
 import io.swagger.v3.oas.annotations.Operation;
@@ -77,5 +73,25 @@ public class SPDController {
     ) {
         java.util.List<PresensiRecordResponse> all = presensiService.listPresensi(tanggal, tingkat);
         return ResponseEntity.ok(all.stream().filter(p -> p.getStatus() == com.polstat.WebServiceApel.entity.Presensi.Status.TERLAMBAT).toList());
+    }
+
+    // Endpoint baru untuk Real-time Scanning
+    @Operation(summary = "Proses Scan QR", description = "Role: SPD. Memproses scan QR Mahasiswa dengan logika toleransi waktu")
+    @PostMapping("/scan")
+    @PreAuthorize("hasAuthority('SPD')")
+    public ResponseEntity<ScanResponse> scan(@org.springframework.web.bind.annotation.RequestParam String nim,
+                                             @org.springframework.web.bind.annotation.RequestParam Long scheduleId) {
+        return ResponseEntity.ok(presensiService.processScan(nim, scheduleId));
+    }
+
+    // Endpoint baru untuk Konfirmasi Manual Status
+    @Operation(summary = "Konfirmasi Status Manual", description = "Role: SPD. Menentukan status HADIR/TERLAMBAT saat di masa transisi")
+    @PostMapping("/confirm")
+    @PreAuthorize("hasAuthority('SPD')")
+    public ResponseEntity<String> confirm(@org.springframework.web.bind.annotation.RequestParam String nim,
+                                          @org.springframework.web.bind.annotation.RequestParam Long scheduleId,
+                                          @org.springframework.web.bind.annotation.RequestParam String status) {
+        presensiService.confirmManual(nim, scheduleId, status);
+        return ResponseEntity.ok("Berhasil mengonfirmasi kehadiran");
     }
 }
