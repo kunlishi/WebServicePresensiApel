@@ -14,6 +14,7 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Builder
 public class PresensiRecordResponse {
+    private Long id;
     private Long scheduleId;
     private LocalDate tanggal;
     private String tingkat;
@@ -24,3 +25,4 @@ public class PresensiRecordResponse {
     private Presensi.Status status;
     private String createdBySpd;
 }
+

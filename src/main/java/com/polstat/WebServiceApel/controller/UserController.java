@@ -63,15 +63,19 @@ public class UserController {
 
     @Operation(summary = "Ganti password", description = "Role: LOGIN. Mengganti password user yang sedang login")
     @PutMapping("/password")
-    public ResponseEntity<Void> changePassword(@RequestBody ChangePasswordRequest req) {
+    public ResponseEntity<?> changePassword(@RequestBody ChangePasswordRequest req) {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
         User user = userRepository.findByUsername(username).orElseThrow();
+
+        // Verifikasi password lama
         if (!passwordEncoder.matches(req.getOldPassword(), user.getPassword())) {
-            return ResponseEntity.status(400).build();
+            // Mengembalikan pesan error agar UI Android bisa menampilkannya
+            return ResponseEntity.status(400).body(Map.of("message", "Password lama tidak sesuai"));
         }
+
         user.setPassword(passwordEncoder.encode(req.getNewPassword()));
         userRepository.save(user);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok(Map.of("message", "Password berhasil diubah"));
     }
 
     @Operation(summary = "Hapus akun saya", description = "Role: LOGIN. Menghapus akun user yang sedang login")

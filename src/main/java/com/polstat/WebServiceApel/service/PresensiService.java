@@ -62,6 +62,10 @@ public class PresensiService {
         }
     }
 
+    public List<ApelSchedule> getSchedulesByDate(LocalDate date) {
+        return apelScheduleRepository.findByTanggalApel(date);
+    }
+
     @Transactional
     public void confirmManual(String nim, Long scheduleId, String status) {
         Mahasiswa mahasiswa = mahasiswaRepository.findByNim(nim)
@@ -83,7 +87,7 @@ public class PresensiService {
         presensiRepository.save(presensi);
     }
 
-    public List<com.polstat.WebServiceApel.dto.PresensiRecordResponse> listPresensi(java.time.LocalDate tanggal, String tingkat) {
+    public List<PresensiRecordResponse> listPresensi(LocalDate tanggal, String tingkat) {
         List<ApelSchedule> schedules;
         if (tanggal != null && tingkat != null) {
             schedules = apelScheduleRepository.findByTanggalApelAndTingkat(tanggal, tingkat)
@@ -94,16 +98,18 @@ public class PresensiService {
         } else {
             schedules = apelScheduleRepository.findAll();
         }
-        java.util.List<com.polstat.WebServiceApel.dto.PresensiRecordResponse> result = new java.util.ArrayList<>();
+        List<PresensiRecordResponse> result = new java.util.ArrayList<>();
         for (ApelSchedule s : schedules) {
             List<Presensi> list = presensiRepository.findAllWithMahasiswaBySchedule(s.getId());
             for (Presensi p : list) {
-                result.add(com.polstat.WebServiceApel.dto.PresensiRecordResponse.builder()
+                result.add(PresensiRecordResponse.builder()
+                        .id(p.getId())
                         .scheduleId(s.getId())
                         .tanggal(s.getTanggalApel())
                         .tingkat(s.getTingkat())
                         .nim(p.getMahasiswa().getNim())
                         .nama(p.getMahasiswa().getNama())
+                        .kelas(p.getMahasiswa().getKelas())
                         .waktuPresensi(p.getWaktuPresensi())
                         .status(p.getStatus())
                         .createdBySpd(p.getCreatedBySpd())
@@ -117,47 +123,20 @@ public class PresensiService {
         presensiRepository.deleteById(id);
     }
 
-    public long markTerlambat(java.time.LocalDate tanggal, String tingkat, java.util.List<String> nims) {
-        ApelSchedule schedule = apelScheduleRepository
-                .findByTanggalApelAndTingkat(tanggal, tingkat)
-                .orElseThrow(() -> new IllegalArgumentException("Jadwal apel tidak ditemukan untuk tanggal/tingkat tersebut"));
+    public List<PresensiRecordResponse> getHistoryByScheduleId(Long scheduleId) {
+        ApelSchedule schedule = apelScheduleRepository.findById(scheduleId)
+                .orElseThrow(() -> new IllegalArgumentException("Jadwal tidak ditemukan"));
 
-        long updated = 0;
-        for (String nim : nims) {
-            Mahasiswa mhs = mahasiswaRepository.findByNim(nim).orElse(null);
-            if (mhs == null) continue;
-            List<Presensi> existing = presensiRepository.findByMahasiswaAndApelSchedule(mhs, schedule);
-            if (existing.isEmpty()) {
-                // belum ada presensi, buat langsung sebagai terlambat
-                Presensi p = Presensi.builder()
-                        .mahasiswa(mhs)
-                        .apelSchedule(schedule)
-                        .waktuPresensi(java.time.LocalDateTime.now())
-                        .status(Presensi.Status.TERLAMBAT)
-                        .createdBySpd(org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName())
-                        .build();
-                presensiRepository.save(p);
-                updated++;
-            } else {
-                // ubah status menjadi terlambat jika belum terlambat
-                Presensi p = existing.get(0);
-                if (p.getStatus() != Presensi.Status.TERLAMBAT) {
-                    p.setStatus(Presensi.Status.TERLAMBAT);
-                    p.setCreatedBySpd(org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName());
-                    presensiRepository.save(p);
-                    updated++;
-                }
-            }
-        }
-        return updated;
+        return presensiRepository.findAllWithMahasiswaBySchedule(scheduleId).stream()
+                .map(p -> mapToRecordResponse(p, schedule))
+                .collect(Collectors.toList());
     }
+
     public PresensiRecordResponse savePresensiSingle(com.polstat.WebServiceApel.dto.PresensiRequest request) {
-        // 1. Cari Jadwal (Menggunakan query yang sama dengan saveBatch)
         ApelSchedule schedule = apelScheduleRepository
                 .findByTanggalApelAndTingkat(java.time.LocalDate.parse(request.getTanggal()), request.getTingkat())
                 .orElseThrow(() -> new IllegalArgumentException("Jadwal apel tidak ditemukan"));
 
-        // 2. Cari Mahasiswa
         Mahasiswa mhs = mahasiswaRepository.findByNim(request.getNim())
                 .orElseThrow(() -> new IllegalArgumentException("Mahasiswa dengan NIM " + request.getNim() + " tidak ditemukan"));
 
@@ -166,7 +145,6 @@ public class PresensiService {
             throw new IllegalArgumentException("Mahasiswa sudah melakukan presensi pada jadwal ini");
         }
 
-        // 4. Simpan Data
         Presensi presensi = Presensi.builder()
                 .mahasiswa(mhs)
                 .apelSchedule(schedule)
@@ -176,8 +154,6 @@ public class PresensiService {
                 .build();
 
         Presensi saved = presensiRepository.save(presensi);
-
-        // 5. Kembalikan Response (Seragam dengan listPresensi)
         return mapToRecordResponse(saved, schedule);
     }
 
@@ -213,11 +189,13 @@ public class PresensiService {
     // Helper method agar kode bersih dan seragam
     private PresensiRecordResponse mapToRecordResponse(Presensi p, ApelSchedule s) {
         return PresensiRecordResponse.builder()
+                .id(p.getId())
                 .scheduleId(s.getId())
                 .tanggal(s.getTanggalApel())
                 .tingkat(s.getTingkat())
                 .nim(p.getMahasiswa().getNim())
                 .nama(p.getMahasiswa().getNama())
+                .kelas(p.getMahasiswa().getKelas())
                 .waktuPresensi(p.getWaktuPresensi())
                 .status(p.getStatus())
                 .createdBySpd(p.getCreatedBySpd())

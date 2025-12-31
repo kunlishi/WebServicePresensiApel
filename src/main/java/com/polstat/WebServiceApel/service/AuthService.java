@@ -8,6 +8,7 @@ import com.polstat.WebServiceApel.repository.UserRepository;
 import com.polstat.WebServiceApel.security.jwt.JwtService;
 import com.polstat.WebServiceApel.security.service.CustomUserDetails;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -27,6 +28,7 @@ public class AuthService {
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
     private final MahasiswaRepository mahasiswaRepository;
+
 
     public ResponseEntity<?> register(RegisterRequest request) {
         // Cek duplikasi username
@@ -139,5 +141,19 @@ public class AuthService {
                 .token(newToken)
                 .role(userOpt.get().getRole().name())
                 .build());
+    }
+
+    public void changePassword(String username, ChangePasswordRequest request) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("User tidak ditemukan"));
+
+        // Cek apakah password lama cocok
+        if (!passwordEncoder.matches(request.getOldPassword(), user.getPassword())) {
+            throw new IllegalArgumentException("Password lama salah!");
+        }
+
+        // Update dengan password baru yang sudah di-encode
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(user);
     }
 }

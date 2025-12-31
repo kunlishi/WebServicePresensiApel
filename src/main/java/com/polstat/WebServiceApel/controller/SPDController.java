@@ -1,20 +1,19 @@
 package com.polstat.WebServiceApel.controller;
 
 import com.polstat.WebServiceApel.dto.*;
+import com.polstat.WebServiceApel.entity.ApelSchedule;
 import com.polstat.WebServiceApel.service.PresensiService;
 import lombok.RequiredArgsConstructor;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDate;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/spd")
@@ -88,10 +87,35 @@ public class SPDController {
     @Operation(summary = "Konfirmasi Status Manual", description = "Role: SPD. Menentukan status HADIR/TERLAMBAT saat di masa transisi")
     @PostMapping("/confirm")
     @PreAuthorize("hasAuthority('SPD')")
-    public ResponseEntity<String> confirm(@org.springframework.web.bind.annotation.RequestParam String nim,
-                                          @org.springframework.web.bind.annotation.RequestParam Long scheduleId,
-                                          @org.springframework.web.bind.annotation.RequestParam String status) {
+    public ResponseEntity<ScanResponse> confirm(
+            @RequestParam String nim,
+            @RequestParam Long scheduleId,
+            @RequestParam String status) {
+
         presensiService.confirmManual(nim, scheduleId, status);
-        return ResponseEntity.ok("Berhasil mengonfirmasi kehadiran");
+
+        // Kirim objek JSON, bukan String, agar Android tidak error parsing
+        return ResponseEntity.ok(ScanResponse.builder()
+                .status(status)
+                .message("Konfirmasi Berhasil")
+                .nim(nim)
+                .build());
+    }
+
+    @Operation(summary = "Daftar jadwal untuk SPD", description = "Mengambil jadwal berdasarkan tanggal untuk dipilih sebelum scanning")
+    @GetMapping("/schedules")
+    @PreAuthorize("hasAuthority('SPD')")
+    public ResponseEntity<List<ApelSchedule>> getSchedulesForSpd(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
+    ) {
+        LocalDate targetDate = (date != null) ? date : LocalDate.now();
+        return ResponseEntity.ok(presensiService.getSchedulesByDate(targetDate));
+    }
+
+    @Operation(summary = "Riwayat per jadwal", description = "Melihat siapa saja yang sudah di-scan untuk jadwal ini")
+    @GetMapping("/schedules/{scheduleId}/presensi")
+    @PreAuthorize("hasAuthority('SPD')")
+    public ResponseEntity<List<PresensiRecordResponse>> getHistoryBySchedule(@PathVariable Long scheduleId) {
+        return ResponseEntity.ok(presensiService.getHistoryByScheduleId(scheduleId));
     }
 }
